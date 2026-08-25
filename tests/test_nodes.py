@@ -57,6 +57,18 @@ def test_classify_node_uses_structured_output_and_returns_route(monkeypatch):
     assert state == {"query": "Please look up order 12345", "route": ""}
 
 
+def test_classification_prompt_disambiguates_instructions_from_lookups(monkeypatch):
+    model = FakeStructuredModel(SimpleNamespace(route="simple", risk_level="low"))
+    monkeypatch.setattr(nodes, "get_llm", lambda: model)
+
+    nodes.classify_node({"query": "How do I change a setting?"})
+
+    prompt = model.prompts[0].casefold()
+    assert "instructions or explanations" in prompt
+    assert "current record" in prompt
+    assert "must never be tool" in prompt
+
+
 def test_answer_node_grounds_llm_prompt_in_current_state(monkeypatch):
     model = FakeTextModel(SimpleNamespace(content="The order is shipped."))
     monkeypatch.setattr(nodes, "get_llm", lambda: model)
@@ -142,6 +154,26 @@ def test_approval_node_defaults_to_serializable_mock_approval(monkeypatch):
         "comment": "mock approval",
     }
     assert event_types(result) == ["completed"]
+
+
+def test_approval_node_uses_interrupt_when_enabled(monkeypatch):
+    monkeypatch.setenv("LANGGRAPH_INTERRUPT", "true")
+    monkeypatch.setattr(
+        "langgraph.types.interrupt",
+        lambda payload: {
+            "approved": False,
+            "reviewer": "human-reviewer",
+            "comment": "needs more evidence",
+        },
+    )
+
+    result = nodes.approval_node({"query": "delete account", "proposed_action": "delete"})
+
+    assert result["approval"] == {
+        "approved": False,
+        "reviewer": "human-reviewer",
+        "comment": "needs more evidence",
+    }
 
 
 def test_dead_letter_node_keeps_route_in_input_and_explains_failure():

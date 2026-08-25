@@ -59,15 +59,26 @@ def _response_text(response: Any) -> str:
 
 def _classification_prompt(query: str) -> str:
     return f"""Classify this support request into exactly one route:
-- simple: answerable without a tool or missing information
-- tool: requires a lookup or other mock tool operation
-- missing_info: too vague to act on safely
-- risky: an external, destructive, financial, or otherwise sensitive action
-- error: a transient or unrecoverable processing failure
+- simple: a general question, explanation, or step-by-step instruction that can be answered
+  from general knowledge without retrieving a current record or taking an external action
+- tool: explicitly asks to look up, search, retrieve, track, or inspect current information
+- missing_info: too vague to act on safely because an essential detail or requested outcome is
+  absent
+- risky: requests an external, destructive, financial, or otherwise sensitive action
+- error: reports a transient or unrecoverable system or processing failure
 
 When more than one category seems possible, use this priority:
 risky > tool > missing_info > error > simple.
-Return the route and a risk level of low or high. Do not infer facts that are not in the request.
+Important distinctions:
+- Instructions or explanations must never be tool merely because they mention an account,
+  password, order, or other object. They are simple when no current record is requested.
+- A tool route requires a request for a current record or lookup, not merely a question about
+  how something works.
+- Use missing_info for vague requests such as "fix it" when the target or desired outcome is
+  not stated. Use error only when the request describes a system failure.
+
+Return only the route and a risk level of low or high. Do not infer facts that are not in the
+request.
 
 Support request:
 {query}
