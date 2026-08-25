@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 
 
 def build_checkpointer(kind: str = "memory", database_url: str | None = None) -> Any | None:
     """Return a LangGraph checkpointer.
 
-    TODO(student): implement SQLite support for the persistence extension track.
-    The starter provides MemorySaver only — SQLite/Postgres are extension tasks.
+    Memory is the default offline checkpointer; SQLite is supported for durable
+    checkpoints. Postgres remains an optional extension.
 
     For SQLite:
     - pip install langgraph-checkpoint-sqlite
@@ -23,10 +24,14 @@ def build_checkpointer(kind: str = "memory", database_url: str | None = None) ->
 
         return MemorySaver()
     if kind == "sqlite":
-        raise NotImplementedError(
-            "TODO(student): implement SQLite checkpointer. "
-            "Hint: pip install langgraph-checkpoint-sqlite, then use SqliteSaver"
-        )
+        from langgraph.checkpoint.sqlite import SqliteSaver
+
+        path = database_url or "checkpoints.db"
+        conn = sqlite3.connect(path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        saver = SqliteSaver(conn)
+        saver.setup()
+        return saver
     if kind == "postgres":
         raise NotImplementedError(
             "TODO(student): implement Postgres checkpointer (optional extension)"
