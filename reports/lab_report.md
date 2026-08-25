@@ -2,7 +2,8 @@
 
 ## 1. Team / student
 
-- Name: Not provided
+- Name: Nguyễn Văn Nam
+- Student ID: 2A202601973
 - Repo/commit: Not provided
 - Date: Not provided
 

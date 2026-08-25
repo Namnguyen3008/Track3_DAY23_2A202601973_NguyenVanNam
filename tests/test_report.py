@@ -47,7 +47,8 @@ def test_render_report_contains_complete_metrics_and_evidence() -> None:
     report = render_report(summarize_metrics(_scenario_metrics(), resume_success=True))
 
     assert "## 1. Team / student" in report
-    assert "- Name: Not provided" in report
+    assert "- Name: Nguyễn Văn Nam" in report
+    assert "- Student ID: 2A202601973" in report
     assert "- Repo/commit: Not provided" in report
     assert "- Date: Not provided" in report
     assert "Total scenarios" in report
