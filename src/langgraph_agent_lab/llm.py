@@ -12,6 +12,19 @@ Usage in nodes:
 from __future__ import annotations
 
 import os
+from itertools import cycle
+from threading import Lock
+
+
+_GEMINI_MODELS = ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite")
+_gemini_model_iterator = cycle(_GEMINI_MODELS)
+_gemini_model_lock = Lock()
+
+
+def _next_gemini_model() -> str:
+    """Return the next Gemini model in the process-wide rotation."""
+    with _gemini_model_lock:
+        return next(_gemini_model_iterator)
 
 
 def get_llm(model: str | None = None, temperature: float = 0.0):
@@ -22,15 +35,17 @@ def get_llm(model: str | None = None, temperature: float = 0.0):
     2. OPENAI_API_KEY → ChatOpenAI
     3. ANTHROPIC_API_KEY → ChatAnthropic
 
-    Override model with the `model` parameter or LLM_MODEL env var.
+    Gemini defaults rotate through the configured lab models; an explicit `model` parameter
+    overrides rotation. OpenAI and Anthropic keep using the `LLM_MODEL` environment override.
     """
     if os.getenv("GEMINI_API_KEY"):
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError as exc:
             raise RuntimeError("Install: pip install langchain-google-genai") from exc
+        selected_model = model if model is not None else _next_gemini_model()
         return ChatGoogleGenerativeAI(
-            model=model or os.getenv("LLM_MODEL", "gemini-2.5-flash"),
+            model=selected_model,
             google_api_key=os.getenv("GEMINI_API_KEY"),
             temperature=temperature,
         )
