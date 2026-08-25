@@ -1,13 +1,19 @@
-from langgraph_agent_lab.metrics import metric_from_state, summarize_metrics
+import json
+from pathlib import Path
+
+from langgraph_agent_lab.metrics import metric_from_state, summarize_metrics, write_metrics
 from langgraph_agent_lab.state import make_event
 
 
-def test_metric_from_state_success():
+def test_metric_from_state_success() -> None:
     state = {
         "scenario_id": "S",
         "route": "simple",
         "final_answer": "ok",
-        "events": [make_event("intake", "completed", "ok"), make_event("answer", "completed", "ok")],
+        "events": [
+            make_event("intake", "completed", "ok"),
+            make_event("answer", "completed", "ok"),
+        ],
         "errors": [],
         "approval": None,
     }
@@ -16,7 +22,7 @@ def test_metric_from_state_success():
     assert metric.nodes_visited == 2
 
 
-def test_metric_from_state_route_mismatch():
+def test_metric_from_state_route_mismatch() -> None:
     state = {
         "scenario_id": "S",
         "route": "tool",
@@ -29,17 +35,54 @@ def test_metric_from_state_route_mismatch():
     assert metric.success is False
 
 
-def test_summarize_metrics():
+def test_summarize_metrics() -> None:
     m1 = metric_from_state(
-        {"scenario_id": "1", "route": "simple", "final_answer": "ok", "events": [], "errors": [], "approval": None},
+        {
+            "scenario_id": "1",
+            "route": "simple",
+            "final_answer": "ok",
+            "events": [],
+            "errors": [],
+            "approval": None,
+        },
         "simple",
         False,
     )
     m2 = metric_from_state(
-        {"scenario_id": "2", "route": "tool", "final_answer": None, "events": [], "errors": [], "approval": None},
+        {
+            "scenario_id": "2",
+            "route": "tool",
+            "final_answer": None,
+            "events": [],
+            "errors": [],
+            "approval": None,
+        },
         "tool",
         False,
     )
     report = summarize_metrics([m1, m2])
     assert report.total_scenarios == 2
     assert 0 <= report.success_rate <= 1
+
+
+def test_write_metrics_writes_valid_json_to_nested_configured_path(tmp_path: Path) -> None:
+    metric = metric_from_state(
+        {
+            "scenario_id": "1",
+            "route": "simple",
+            "final_answer": "ok",
+            "events": [],
+            "errors": [],
+            "approval": None,
+        },
+        "simple",
+        False,
+    )
+    report = summarize_metrics([metric])
+    output_path = tmp_path / "configured" / "metrics.json"
+
+    write_metrics(report, output_path)
+
+    contents = output_path.read_text(encoding="utf-8")
+    assert json.loads(contents) == report.model_dump()
+    assert contents.endswith("}")
